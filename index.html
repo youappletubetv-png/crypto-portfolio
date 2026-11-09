@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Крипто-портфель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: «пульт» — сверху итог портфеля и калькулятор в углу, ниже карточки активов, график + форма покупки, история сделок */
+:root{
+  --bg:#f3f5fa; --surface:#ffffff; --surface-2:#eceff6; --line:#dce1ec;
+  --fg:#121620; --muted:#5d667a; --faint:#8d95a8;
+  --accent:#c2740a; --accent-soft:rgba(194,116,10,.12);
+  --eth:#5560e8; --sol:#0b9f86;
+  --up:#0d9a6a; --down:#d9374b; --up-soft:rgba(13,154,106,.12); --down-soft:rgba(217,55,75,.11);
+  --btn-bg:#121620; --btn-fg:#ffffff;
+  --shadow:0 1px 2px rgba(18,22,32,.04),0 8px 24px -12px rgba(18,22,32,.14);
+  --f-display:"Unbounded","Onest",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:14px; --r-sm:9px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c0f16; --surface:#131824; --surface-2:#1a2030; --line:#252c3d;
+  --fg:#e9ecf3; --muted:#8e97ab; --faint:#5f677b;
+  --accent:#ffb347; --accent-soft:rgba(255,179,71,.13);
+  --eth:#8c96ff; --sol:#33d6b6;
+  --up:#35d08f; --down:#ff6474; --up-soft:rgba(53,208,143,.12); --down-soft:rgba(255,100,116,.12);
+  --btn-bg:#e9ecf3; --btn-fg:#0c0f16;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c0f16; --surface:#131824; --surface-2:#1a2030; --line:#252c3d;
+  --fg:#e9ecf3; --muted:#8e97ab; --faint:#5f677b;
+  --accent:#ffb347; --accent-soft:rgba(255,179,71,.13);
+  --eth:#8c96ff; --sol:#33d6b6;
+  --up:#35d08f; --down:#ff6474; --up-soft:rgba(53,208,143,.12); --down-soft:rgba(255,100,116,.12);
+  --btn-bg:#e9ecf3; --btn-fg:#0c0f16;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:20px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+.label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:20px 4px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:36px;height:36px;border-radius:10px;background:var(--fg);color:var(--bg);display:grid;place-items:center;font:600 15px var(--f-display)}
+.brand h1{font:600 18px/1.1 var(--f-display);letter-spacing:-.01em}
+.brand small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.bar-right{display:flex;align-items:center;gap:10px}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:6px 11px;border:1px solid var(--line);border-radius:99px;background:var(--surface)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.live[data-s="live"] .dot{background:var(--up);box-shadow:0 0 0 0 var(--up);animation:pulse 2s infinite}
+.live[data-s="poll"] .dot{background:var(--accent)}
+.live[data-s="off"] .dot{background:var(--down)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--up-soft)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon-btn:hover{color:var(--fg)}
+
+/* hero row */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.total{padding:26px 28px;display:grid;gap:22px}
+.total-main{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 28px}
+.big{font:500 clamp(34px,5.4vw,54px)/1 var(--f-mono);letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;font:600 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.pill.up{background:var(--up-soft)} .pill.down{background:var(--down-soft)} .pill.flat{background:var(--surface-2);color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line)}
+.stat{background:var(--surface);padding:12px 14px;display:grid;gap:4px;min-width:0}
+.stat .v{font:500 16.5px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alloc{display:grid;gap:8px}
+.alloc-bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-2)}
+.alloc-bar span{display:block;height:100%;transition:width .4s}
+.alloc-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.alloc-legend b{color:var(--fg);font:500 13px var(--f-mono)}
+.sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
+
+/* calculator */
+.calc{padding:18px 18px 16px;display:grid;gap:12px}
+.calc-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.calc-head h2{font:600 14px var(--f-display);letter-spacing:0}
+.tag{white-space:nowrap;font-size:11px;color:var(--muted);background:var(--surface-2);padding:3px 8px;border-radius:99px}
+.field{display:grid;gap:6px}
+.input{width:100%;height:42px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface-2);outline:none;transition:border-color .15s,background .15s}
+.input:focus{border-color:var(--accent);background:var(--surface)}
+.input.num{font-size:15px}
+.input-wrap{position:relative}
+.input-wrap .suffix{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--faint);pointer-events:none;font-family:var(--f-mono)}
+.input-wrap .input{padding-right:58px}
+.calc-rows{display:grid;gap:8px}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) 74px 28px;gap:6px;align-items:center}
+.crow .input{height:36px;font-size:14px}
+.crow .pct{text-align:right;padding-right:22px}
+.crow .pct-wrap{position:relative}
+.crow .pct-wrap::after{content:"%";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--faint)}
+.crow-out{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 2px 6px;border-bottom:1px dashed var(--line);font-size:13px;color:var(--muted)}
+.crow-out .amt{font:600 15px var(--f-mono);color:var(--fg)}
+.x{width:28px;height:28px;border:0;background:none;border-radius:8px;color:var(--faint);cursor:pointer;font-size:18px;line-height:1}
+.x:hover{background:var(--down-soft);color:var(--down)}
+.calc-actions{display:flex;gap:8px;flex-wrap:wrap}
+.chip-btn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.chip-btn:hover{color:var(--fg);border-color:var(--faint)}
+.calc-foot{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);gap:8px;flex-wrap:wrap}
+.calc-foot .warn{color:var(--accent);font-weight:600}
+.to-form{border:0;background:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0}
+.to-form:hover{text-decoration:underline}
+
+/* asset cards */
+.assets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.asset{padding:20px 22px;display:grid;gap:16px;position:relative;overflow:hidden}
+.asset-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.coin{display:flex;gap:12px;align-items:center}
+.coin-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:600 13px var(--f-display);color:#fff}
+.coin h3{font:600 16px var(--f-body)}
+.coin small{color:var(--muted);font-size:12.5px}
+.price{text-align:right}
+.price .p{font:500 22px var(--f-mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums;transition:color .6s}
+.price .p.flash-up{color:var(--up);transition:none} .price .p.flash-down{color:var(--down);transition:none}
+.price .c{font:500 12.5px var(--f-mono)}
+.spark{height:64px;width:100%;display:block}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 12px}
+.kv div{display:grid;gap:3px;min-width:0}
+.kv .v{font:500 15px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-pnl{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:var(--r-sm);background:var(--surface-2);gap:10px;flex-wrap:wrap}
+.asset-pnl .v{font:600 17px var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* chart + form */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:18px 22px 0}
+.section-head h2{font:600 15px var(--f-display)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--muted);font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chart-box{position:relative;padding:8px 10px 14px}
+#chart{width:100%;height:300px;display:block}
+.chart-legend{display:flex;gap:16px;flex-wrap:wrap;padding:0 22px;font-size:12.5px;color:var(--muted)}
+.leg-line{display:inline-block;width:16px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:10px;padding:9px 11px;font-size:12.5px;min-width:170px;display:grid;gap:3px;z-index:3}
+.tip .row{display:flex;justify-content:space-between;gap:14px}
+.tip .num{font-weight:500}
+.chart-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;text-align:center;padding:20px}
+
+.form{padding:20px 22px 22px;display:grid;gap:14px}
+.form h2{font:600 15px var(--f-display)}
+.asset-pick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.asset-pick label{position:relative;cursor:pointer}
+.asset-pick input{position:absolute;opacity:0;pointer-events:none}
+.asset-pick span{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--r-sm);font-weight:600;transition:.15s}
+.asset-pick span i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font:600 9px var(--f-display);color:#fff;font-style:normal}
+.asset-pick input:checked + span{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,transparent)}
+.asset-pick input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.link{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:12px;font-weight:600}
+.link:hover{text-decoration:underline}
+.btn{height:46px;border-radius:var(--r-sm);border:0;background:var(--btn-bg);color:var(--btn-fg);font-weight:600;cursor:pointer;font-size:15px;transition:transform .1s,opacity .15s}
+.btn:hover{opacity:.9} .btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.err{color:var(--down);font-size:13px;min-height:0}
+.auto{font-size:11px;color:var(--accent);font-weight:600;text-transform:none;letter-spacing:0;margin-left:6px}
+
+/* table */
+.history .section-head{padding-bottom:12px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:820px}
+th{text-align:right;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+td{text-align:right;padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-size:13.5px}
+.asset-tag{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.asset-tag i{width:8px;height:8px;border-radius:3px}
+.acts{display:flex;gap:4px;justify-content:flex-end}
+.act{border:0;background:none;padding:5px 8px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:12.5px}
+.act:hover{background:var(--surface-2);color:var(--fg)}
+.act.danger{color:var(--down)} .act.danger.armed{background:var(--down);color:#fff}
+.empty{padding:40px 22px;text-align:center;display:grid;gap:12px;justify-items:center;color:var(--muted)}
+.empty b{color:var(--fg);font-size:16px}
+.demo-badge{display:inline-flex;gap:8px;align-items:center;background:var(--accent-soft);color:var(--accent);padding:8px 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600;flex-wrap:wrap}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;padding-top:4px}
+.foot .btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* login gate */
+body.locked .wrap{display:none}
+.gate{min-height:100vh;display:grid;place-items:center;padding-block:32px}
+.gate-card{width:100%;max-width:380px;padding:28px;display:grid;gap:16px}
+.gate-card .brand{margin-bottom:6px}
+.gate-card p{margin:0;color:var(--muted);font-size:14px}
+.btn:disabled{opacity:.55;cursor:default}
+.who{font-size:12.5px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){.who{display:none}}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--btn-bg);color:var(--btn-fg);padding:11px 18px;border-radius:12px;font-weight:600;font-size:14px;transition:.25s;pointer-events:none;z-index:20;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:980px){
+  .hero,.work{grid-template-columns:minmax(0,1fr)}
+  .assets{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .total{padding:20px}
+  .kv{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .asset{padding:18px}
+  #chart{height:240px}
+  .brand small{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body class="locked">
+<div class="gate" id="gate">
+  <form class="panel gate-card" id="loginForm" novalidate>
+    <div class="brand"><div class="mark">₿</div><div><h1>Крипто-портфель</h1><small>Вход в личный кабинет</small></div></div>
+    <p id="gateMsg">Проверяю вход…</p>
+    <div class="field" id="gateFields" hidden>
+      <label class="label" for="lEmail">Почта</label>
+      <input class="input" type="email" id="lEmail" autocomplete="username" required>
+      <label class="label" for="lPass" style="margin-top:8px">Пароль</label>
+      <input class="input" type="password" id="lPass" autocomplete="current-password" required>
+    </div>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button class="btn" type="submit" id="loginBtn" hidden>Войти</button>
+  </form>
+</div>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">₿</div>
+      <div><h1>Крипто-портфель</h1><small>Ежемесячные покупки · цены Binance</small></div>
+    </div>
+    <div class="bar-right">
+      <span class="live" id="live" data-s="off"><span class="dot"></span><span id="liveText">Подключение…</span></span>
+      <span class="who" id="who"></span>
+      <button class="icon-btn" id="logoutBtn" title="Выйти" aria-label="Выйти">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg>
+      </button>
+      <button class="icon-btn" id="themeBtn" title="Сменить тему" aria-label="Сменить тему">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="panel total" id="total">
+      <div class="label">Стоимость портфеля сейчас</div>
+      <div class="total-main">
+        <div class="big" id="tValue">$0,00</div>
+        <div><span class="pill flat" id="tPnlPill">—</span></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="label">Вложено</span><span class="v" id="tInvested">$0,00</span></div>
+        <div class="stat"><span class="label">Прибыль / убыток</span><span class="v" id="tPnl">$0,00</span></div>
+        <div class="stat"><span class="label">Покупок</span><span class="v" id="tCount">0</span></div>
+        <div class="stat"><span class="label">Инвестирую с</span><span class="v" id="tSince">—</span></div>
+      </div>
+      <div class="alloc">
+        <div class="label">Доли в портфеле</div>
+        <div class="alloc-bar" id="allocBar"></div>
+        <div class="alloc-legend" id="allocLegend"></div>
+      </div>
+    </div>
+
+    <aside class="panel calc" aria-label="Калькулятор распределения">
+      <div class="calc-head"><h2>Калькулятор распределения</h2><span class="tag">не влияет на статистику</span></div>
+      <div class="field">
+        <label class="label" for="calcTotal">Сумма к инвестированию</label>
+        <div class="input-wrap"><input class="input num" id="calcTotal" inputmode="decimal" autocomplete="off" placeholder="0"><span class="suffix">USDT</span></div>
+      </div>
+      <div class="calc-rows" id="calcRows"></div>
+      <div class="calc-actions">
+        <button class="chip-btn" id="calcAdd">+ Актив</button>
+        <button class="chip-btn" id="calcEven">Поровну</button>
+      </div>
+      <div class="calc-foot" id="calcFoot"></div>
+    </aside>
+  </section>
+
+  <section class="assets" id="assets"></section>
+
+  <section class="work">
+    <div class="panel">
+      <div class="section-head">
+        <h2>Динамика</h2>
+        <div class="seg" id="chartSeg" role="group" aria-label="Что показать на графике"></div>
+      </div>
+      <div class="chart-box">
+        <svg id="chart" role="img" aria-label="График"></svg>
+        <div class="tip" id="tip" hidden></div>
+        <div class="chart-empty" id="chartEmpty" hidden></div>
+      </div>
+      <div class="chart-legend" id="chartLegend"></div>
+      <div style="height:16px"></div>
+    </div>
+
+    <form class="panel form" id="buyForm" novalidate>
+      <h2 id="formTitle">Новая покупка</h2>
+      <div class="asset-pick" id="assetPick"></div>
+      <div class="field">
+        <label class="label" for="fDate">Дата покупки</label>
+        <input class="input" type="date" id="fDate" required>
+      </div>
+      <div class="field">
+        <label class="label" for="fAmount">Сумма покупки <span class="auto" id="autoAmount" hidden>посчитано</span></label>
+        <div class="input-wrap"><input class="input num" id="fAmount" inputmode="decimal" autocomplete="off" placeholder="0"><span class="suffix">USDT</span></div>
+      </div>
+      <div class="field">
+        <label class="label" for="fPrice">Цена покупки <span class="auto" id="autoPrice" hidden>посчитано</span></label>
+        <div class="input-wrap"><input class="input num" id="fPrice" inputmode="decimal" autocomplete="off" placeholder="0"><span class="suffix">USDT</span></div>
+        <div class="hint"><span id="priceHint"></span><button type="button" class="link" id="useLive">Подставить текущую</button></div>
+      </div>
+      <div class="field">
+        <label class="label" for="fQty">Получено монет <span class="auto" id="autoQty" hidden>посчитано</span></label>
+        <div class="input-wrap"><input class="input num" id="fQty" inputmode="decimal" autocomplete="off" placeholder="0"><span class="suffix" id="qtySuffix">ETH</span></div>
+        <div class="hint"><span>Заполните любые два поля, третье посчитается само</span></div>
+      </div>
+      <div class="err" id="formErr" role="alert"></div>
+      <button class="btn" type="submit" id="submitBtn">Подтвердить покупку</button>
+      <button class="btn ghost" type="button" id="cancelEdit" hidden>Отменить редактирование</button>
+    </form>
+  </section>
+
+  <section class="panel history">
+    <div class="section-head"><h2>История покупок</h2><span class="muted" style="font-size:13px" id="histMeta"></span></div>
+    <div id="histBody"></div>
+  </section>
+
+  <footer class="foot">
+    <span id="syncNote">Покупки хранятся в облаке и доступны с любого устройства после входа.</span>
+    <div class="btns">
+      <button class="chip-btn" id="exportBtn">Скачать резервную копию</button>
+      <label class="chip-btn" for="importFile" style="cursor:pointer">Добавить из резервной копии</label>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+/* ===================== Настройки ===================== */
+// Чтобы добавить новый актив, допишите строку сюда (тикер пары на Binance к USDT).
+const ASSETS = {
+  ETH: { pair: 'ETHUSDT', name: 'Ethereum', color: 'var(--eth)', qtyDp: 5 },
+  SOL: { pair: 'SOLUSDT', name: 'Solana',   color: 'var(--sol)', qtyDp: 3 },
+};
+const REST_HOSTS = ['https://data-api.binance.vision', 'https://api.binance.com', 'https://api1.binance.com'];
+const WS_HOSTS = ['wss://data-stream.binance.vision/stream', 'wss://stream.binance.com:9443/stream'];
+const SB_URL = 'https://ddbjkowobwhdutnunppg.supabase.co';
+const SB_KEY = 'sb_publishable_VTaxbbxsBPi66uOjKAztiA_yvZ_aCvT'; // публичный ключ, защита — правила доступа в базе
+const CALC_KEY = 'cryptofolio.calc.v1';
+const THEME_KEY = 'cryptofolio.theme';
+
+/* ===================== Утилиты ===================== */
+const $ = id => document.getElementById(id);
+const KEYS = Object.keys(ASSETS);
+const nf = (dp, min = dp) => new Intl.NumberFormat('ru-RU', { minimumFractionDigits: min, maximumFractionDigits: dp });
+const usd = (v, dp = 2) => (v < 0 ? '−$' : '$') + nf(dp).format(Math.abs(v || 0));
+const usdSigned = (v, dp = 2) => (v > 0 ? '+' : v < 0 ? '−' : '') + '$' + nf(dp).format(Math.abs(v || 0));
+const pct = v => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(2).format(Math.abs(v || 0)) + '%';
+const qtyFmt = (v, k) => nf(ASSETS[k]?.qtyDp ?? 4, 0).format(v || 0);
+const priceDp = p => p >= 1000 ? 2 : p >= 1 ? 2 : 5;
+const parseNum = s => { const n = parseFloat(String(s).replace(/\s| /g, '').replace(',', '.')); return isFinite(n) ? n : NaN; };
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const dayKeyUTC = ts => new Date(ts).toISOString().slice(0, 10);
+const fmtDate = k => { const [y, m, d] = k.split('-'); return `${d}.${m}.${y}`; };
+const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const fmtDateShort = k => { const [y, m, d] = k.split('-'); return `${+d} ${MONTHS[+m - 1]}`; };
+const store = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+/* ===================== Состояние ===================== */
+let data = { purchases: [], demo: false };
+let loaded = false;
+const prices = {};   // { ETH: {price, change} }
+const klines = {};   // { ETH: Map(dayKey -> close) }
+let chartView = 'portfolio';
+let editingId = null;
+
+const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+const fromRow = r => ({ id: r.id, asset: r.asset, date: r.date, amount: +r.amount, price: +r.price, qty: +r.qty, createdAt: Date.parse(r.created_at) || 0 });
+const errText = e => !e ? 'неизвестная ошибка' : /fetch|network/i.test(e.message || '') ? 'нет связи с сервером, проверьте интернет' : (e.message || String(e));
+async function loadFromDB(silent) {
+  const { data: rows, error } = await sb.from('purchases').select('*').order('date');
+  if (error) { if (!silent) toast('Не удалось загрузить покупки: ' + errText(error)); return false; }
+  if (!(data.demo && !rows.length)) data = { purchases: rows.map(fromRow), demo: false };
+  loaded = true; refreshAll(); loadKlines(); return true;
+}
+
+/* ===================== Расчёты ===================== */
+function positions() {
+  const res = {};
+  for (const k of KEYS) res[k] = { invested: 0, qty: 0, count: 0 };
+  for (const p of data.purchases) {
+    if (!res[p.asset]) res[p.asset] = { invested: 0, qty: 0, count: 0 };
+    res[p.asset].invested += p.amount; res[p.asset].qty += p.qty; res[p.asset].count++;
+  }
+  for (const k in res) {
+    const r = res[k], price = prices[k]?.price;
+    r.avg = r.qty > 0 ? r.invested / r.qty : 0;
+    r.value = price != null ? r.qty * price : null;
+    r.pnl = r.value != null ? r.value - r.invested : null;
+    r.pnlPct = r.pnl != null && r.invested > 0 ? r.pnl / r.invested * 100 : null;
+  }
+  return res;
+}
+
+/* ===================== Рендер: итог ===================== */
+function renderSummary() {
+  const pos = positions();
+  let inv = 0, val = 0, known = true;
+  for (const k in pos) { inv += pos[k].invested; if (pos[k].qty > 0) { if (pos[k].value == null) known = false; else val += pos[k].value; } }
+  const pnl = val - inv, pp = inv > 0 ? pnl / inv * 100 : 0;
+  $('tValue').textContent = known ? usd(val) : '—';
+  $('tInvested').textContent = usd(inv);
+  const tp = $('tPnl'); tp.textContent = known ? usdSigned(pnl) : '—'; tp.className = 'v ' + (known ? cls(pnl) : '');
+  const pill = $('tPnlPill');
+  if (inv > 0 && known) { pill.className = 'pill ' + (cls(pnl) || 'flat'); pill.textContent = (pnl >= 0 ? '▲ ' : '▼ ') + pct(pp); }
+  else { pill.className = 'pill flat'; pill.textContent = 'нет покупок'; }
+  $('tCount').textContent = data.purchases.length;
+  const first = data.purchases.map(p => p.date).sort()[0];
+  $('tSince').textContent = first ? fmtDate(first) : '—';
+  // доли
+  const bar = $('allocBar'), leg = $('allocLegend');
+  const parts = KEYS.map(k => ({ k, v: pos[k].value ?? pos[k].invested })).filter(x => x.v > 0);
+  const sum = parts.reduce((a, b) => a + b.v, 0);
+  bar.innerHTML = parts.map(x => `<span style="width:${x.v / sum * 100}%;background:${ASSETS[x.k].color}"></span>`).join('');
+  leg.innerHTML = parts.length ? parts.map(x => `<span><i class="sw" style="background:${ASSETS[x.k].color}"></i>${x.k} <b>${nf(1).format(x.v / sum * 100)}%</b></span>`).join('') : '<span>Появятся после первой покупки</span>';
+}
+
+/* ===================== Рендер: карточки активов ===================== */
+function buildAssetCards() {
+  $('assets').innerHTML = KEYS.map(k => `
+    <article class="panel asset" id="card-${k}">
+      <div class="asset-top">
+        <div class="coin"><div class="coin-ico" style="background:${ASSETS[k].color}">${k}</div>
+          <div><h3>${ASSETS[k].name}</h3><small>${ASSETS[k].pair.replace('USDT', ' / USDT')} · Binance</small></div></div>
+        <div class="price"><div class="p num" data-f="price">—</div><div class="c" data-f="chg">24ч —</div></div>
+      </div>
+      <svg class="spark" data-f="spark" preserveAspectRatio="none"></svg>
+      <div class="kv">
+        <div><span class="label">Монет</span><span class="v" data-f="qty">0</span></div>
+        <div><span class="label">Средняя цена входа</span><span class="v" data-f="avg">—</span></div>
+        <div><span class="label">Вложено</span><span class="v" data-f="inv">$0,00</span></div>
+        <div><span class="label">Стоит сейчас</span><span class="v" data-f="val">—</span></div>
+        <div><span class="label">Цена к средней</span><span class="v" data-f="vsavg">—</span></div>
+        <div><span class="label">Покупок</span><span class="v" data-f="cnt">0</span></div>
+      </div>
+      <div class="asset-pnl"><span class="label">Результат (PnL)</span><span class="v" data-f="pnl">—</span></div>
+    </article>`).join('');
+}
+const lastPrice = {};
+function renderAssets() {
+  const pos = positions();
+  for (const k of KEYS) {
+    const card = $('card-' + k); if (!card) continue;
+    const f = n => card.querySelector(`[data-f="${n}"]`);
+    const pr = prices[k], ps = pos[k];
+    const pEl = f('price');
+    if (pr) {
+      pEl.textContent = usd(pr.price, priceDp(pr.price));
+      if (lastPrice[k] != null && pr.price !== lastPrice[k]) {
+        pEl.classList.remove('flash-up', 'flash-down'); void pEl.offsetWidth;
+        pEl.classList.add(pr.price > lastPrice[k] ? 'flash-up' : 'flash-down');
+        clearTimeout(pEl._t); pEl._t = setTimeout(() => pEl.classList.remove('flash-up', 'flash-down'), 350);
+      }
+      lastPrice[k] = pr.price;
+      const c = f('chg'); c.textContent = '24ч ' + pct(pr.change); c.className = 'c ' + cls(pr.change);
+    }
+    f('qty').textContent = qtyFmt(ps.qty, k);
+    f('avg').textContent = ps.qty > 0 ? usd(ps.avg, priceDp(ps.avg)) : '—';
+    f('inv').textContent = usd(ps.invested);
+    f('val').textContent = ps.value != null ? usd(ps.value) : '—';
+    const va = f('vsavg');
+    if (ps.qty > 0 && pr) { const d = (pr.price / ps.avg - 1) * 100; va.textContent = pct(d); va.className = 'v ' + cls(d); } else { va.textContent = '—'; va.className = 'v'; }
+    f('cnt').textContent = ps.count;
+    const pnl = f('pnl');
+    if (ps.qty > 0 && ps.pnl != null) { pnl.textContent = `${usdSigned(ps.pnl)} · ${pct(ps.pnlPct)}`; pnl.className = 'v ' + cls(ps.pnl); }
+    else { pnl.textContent = ps.qty > 0 ? '—' : 'нет покупок'; pnl.className = 'v muted'; }
+  }
+}
+function renderSparks() {
+  const pos = positions();
+  for (const k of KEYS) {
+    const card = $('card-' + k); if (!card) continue;
+    const svg = card.querySelector('[data-f="spark"]');
+    const m = klines[k]; if (!m || !m.size) { svg.innerHTML = ''; continue; }
+    const pts = [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).slice(-30).map(e => e[1]);
+    if (prices[k]) pts[pts.length - 1] = prices[k].price;
+    const W = 300, H = 64, pad = 4;
+    const avg = pos[k].qty > 0 ? pos[k].avg : null;
+    let lo = Math.min(...pts), hi = Math.max(...pts);
+    if (avg) { lo = Math.min(lo, avg); hi = Math.max(hi, avg); }
+    const y = v => H - pad - (v - lo) / ((hi - lo) || 1) * (H - pad * 2);
+    const x = i => i / (pts.length - 1) * W;
+    const d = pts.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    const id = 'g' + k;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ASSETS[k].color}" stop-opacity=".28"/><stop offset="1" stop-color="${ASSETS[k].color}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${d} L${W} ${H} L0 ${H} Z" fill="url(#${id})"/>
+      ${avg ? `<line x1="0" x2="${W}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--muted)" stroke-dasharray="3 4" stroke-width="1" vector-effect="non-scaling-stroke"/>` : ''}
+      <path d="${d}" fill="none" stroke="${ASSETS[k].color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+    svg.setAttribute('aria-label', `${k}: цена за 30 дней${avg ? ', пунктир — средняя цена входа' : ''}`);
+  }
+}
+
+/* ===================== Рендер: история ===================== */
+function renderHistory() {
+  const body = $('histBody');
+  const rows = [...data.purchases].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  $('histMeta').textContent = rows.length ? `${rows.length} ${plural(rows.length, ['запись', 'записи', 'записей'])}` : '';
+  if (!loaded && !rows.length) { body.innerHTML = '<div class="empty"><span>Загружаю покупки…</span></div>'; return; }
+  if (!rows.length) {
+    body.innerHTML = `<div class="empty"><b>Пока нет ни одной покупки</b>
+      <span>Запишите первую покупку в форме «Новая покупка»: выберите актив, дату, сумму и цену.<br>Можно сначала посмотреть, как всё выглядит, на примере.</span>
+      <button class="chip-btn" id="demoBtn">Показать пример</button></div>`;
+    $('demoBtn').onclick = loadDemo; return;
+  }
+  const demo = data.demo ? `<div style="padding:0 22px 12px"><span class="demo-badge">Это пример, а не ваши данные <button class="link" id="clearDemo">Очистить и начать</button></span></div>` : '';
+  body.innerHTML = demo + `<div class="table-wrap"><table>
+    <thead><tr><th>Дата</th><th>Актив</th><th>Сумма</th><th>Цена покупки</th><th>Количество</th><th>Сейчас стоит</th><th>PnL</th><th></th></tr></thead>
+    <tbody>${rows.map(p => {
+      const pr = prices[p.asset]?.price, val = pr != null ? p.qty * pr : null, pnl = val != null ? val - p.amount : null;
+      const a = ASSETS[p.asset] || { color: 'var(--faint)' };
+      return `<tr>
+        <td class="num">${fmtDate(p.date)}</td>
+        <td><span class="asset-tag"><i style="background:${a.color}"></i>${esc(p.asset)}</span></td>
+        <td class="num">${usd(p.amount)}</td>
+        <td class="num">${usd(p.price, priceDp(p.price))}</td>
+        <td class="num">${qtyFmt(p.qty, p.asset)}</td>
+        <td class="num">${val != null ? usd(val) : '—'}</td>
+        <td class="num ${cls(pnl)}">${pnl != null ? usdSigned(pnl) + ' <span style="opacity:.75">' + pct(pnl / p.amount * 100) + '</span>' : '—'}</td>
+        <td><div class="acts"><button class="act" data-edit="${p.id}">Изменить</button><button class="act danger" data-del="${p.id}">Удалить</button></div></td>
+      </tr>`; }).join('')}</tbody></table></div>`;
+  const cd = $('clearDemo'); if (cd) cd.onclick = () => { data = { purchases: [], demo: false }; refreshAll(); toast('Пример убран'); };
+}
+function plural(n, f) { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? f[2] : b === 1 ? f[0] : b >= 2 && b <= 4 ? f[1] : f[2]; }
+$('histBody').addEventListener('click', async e => {
+  const del = e.target.closest('[data-del]'), ed = e.target.closest('[data-edit]');
+  if (del) {
+    if (!del.classList.contains('armed')) {
+      del.classList.add('armed'); del.textContent = 'Точно удалить?';
+      setTimeout(() => { if (del.isConnected) { del.classList.remove('armed'); del.textContent = 'Удалить'; } }, 3000);
+      return;
+    }
+    const id = del.dataset.del;
+    if (!data.demo) {
+      del.disabled = true; del.textContent = 'Удаляю…';
+      const { error } = await sb.from('purchases').delete().eq('id', id);
+      if (error) { toast('Не удалось удалить: ' + errText(error)); del.disabled = false; del.classList.remove('armed'); del.textContent = 'Удалить'; return; }
+    }
+    data.purchases = data.purchases.filter(p => p.id !== id);
+    if (!data.purchases.length) data.demo = false;
+    refreshAll(); toast('Покупка удалена');
+  }
+  if (ed) startEdit(ed.dataset.edit);
+});
+
+/* ===================== Форма покупки ===================== */
+function buildAssetPick() {
+  $('assetPick').innerHTML = KEYS.map((k, i) => `<label style="--c:${ASSETS[k].color}"><input type="radio" name="asset" value="${k}" ${i ? '' : 'checked'}><span><i style="background:${ASSETS[k].color}">${k}</i>${ASSETS[k].name}</span></label>`).join('');
+  $('assetPick').addEventListener('change', () => { $('qtySuffix').textContent = curAsset(); updatePriceHint(); });
+}
+const curAsset = () => document.querySelector('input[name="asset"]:checked')?.value || KEYS[0];
+const F = { amount: $('fAmount'), price: $('fPrice'), qty: $('fQty') };
+const AUTO = { amount: $('autoAmount'), price: $('autoPrice'), qty: $('autoQty') };
+let editOrder = []; // последние поля, которые вводил пользователь
+let autoField = null;
+function recompute() {
+  const a = parseNum(F.amount.value), p = parseNum(F.price.value), q = parseNum(F.qty.value);
+  const user = editOrder.filter(n => n !== autoField || editOrder.length > 2).slice(-2);
+  const target = ['amount', 'price', 'qty'].find(n => !user.includes(n));
+  for (const n in AUTO) AUTO[n].hidden = true;
+  if (user.length < 2) { autoField = null; return; }
+  const v = { amount: a, price: p, qty: q };
+  if (!(v[user[0]] > 0 && v[user[1]] > 0)) return;
+  let out;
+  if (target === 'qty') out = (v.amount / v.price);
+  if (target === 'amount') out = v.price * v.qty;
+  if (target === 'price') out = v.amount / v.qty;
+  F[target].value = target === 'qty' ? +out.toFixed(8) : +out.toFixed(target === 'price' ? 6 : 2);
+  autoField = target; AUTO[target].hidden = false;
+}
+for (const n in F) F[n].addEventListener('input', () => {
+  editOrder = editOrder.filter(x => x !== n); editOrder.push(n);
+  if (editOrder.length > 2) editOrder = editOrder.slice(-2);
+  recompute();
+});
+function updatePriceHint() {
+  const pr = prices[curAsset()];
+  $('priceHint').textContent = pr ? `Сейчас на Binance: ${usd(pr.price, priceDp(pr.price))}` : '';
+}
+$('useLive').onclick = () => {
+  const pr = prices[curAsset()]; if (!pr) { toast('Цена ещё не загрузилась'); return; }
+  F.price.value = pr.price; F.price.dispatchEvent(new Event('input'));
+};
+function resetForm() {
+  $('buyForm').reset();
+  document.querySelector('input[name="asset"]').checked = true;
+  $('fDate').value = todayKey(); editOrder = []; autoField = null;
+  for (const n in AUTO) AUTO[n].hidden = true;
+  $('qtySuffix').textContent = curAsset(); $('formErr').textContent = '';
+  editingId = null; $('formTitle').textContent = 'Новая покупка'; $('submitBtn').textContent = 'Подтвердить покупку'; $('cancelEdit').hidden = true;
+  updatePriceHint();
+}
+function startEdit(id) {
+  const p = data.purchases.find(x => x.id === id); if (!p) return;
+  editingId = id;
+  const r = document.querySelector(`input[name="asset"][value="${p.asset}"]`); if (r) r.checked = true;
+  $('fDate').value = p.date; F.amount.value = p.amount; F.price.value = p.price; F.qty.value = p.qty;
+  editOrder = ['amount', 'price']; autoField = null; for (const n in AUTO) AUTO[n].hidden = true;
+  $('qtySuffix').textContent = p.asset;
+  $('formTitle').textContent = 'Редактирование покупки'; $('submitBtn').textContent = 'Сохранить изменения'; $('cancelEdit').hidden = false;
+  $('buyForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('cancelEdit').onclick = resetForm;
+$('buyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const asset = curAsset(), date = $('fDate').value;
+  const amount = parseNum(F.amount.value), price = parseNum(F.price.value), qty = parseNum(F.qty.value);
+  const err = $('formErr');
+  if (!date) return err.textContent = 'Укажите дату покупки.';
+  if (date > todayKey()) return err.textContent = 'Дата покупки не может быть в будущем.';
+  if (!(amount > 0) || !(price > 0) || !(qty > 0)) return err.textContent = 'Заполните сумму, цену и количество числами больше нуля (хватит двух любых).';
+  const drift = Math.abs(amount - price * qty) / amount;
+  if (drift > 0.03) return err.textContent = `Сумма не сходится: ${nf(6, 0).format(qty)} × ${usd(price, priceDp(price))} = ${usd(price * qty)}, а указано ${usd(amount)}. Проверьте числа (комиссия до 3% допустима).`;
+  err.textContent = '';
+  const row = { asset, date, amount, price, qty };
+  if (data.demo && editingId) {
+    Object.assign(data.purchases.find(x => x.id === editingId) || {}, row);
+    toast('Пример изменён (не сохраняется)'); resetForm(); refreshAll(); return;
+  }
+  const btn = $('submitBtn'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  const q = editingId ? sb.from('purchases').update(row).eq('id', editingId) : sb.from('purchases').insert(row);
+  const { data: saved, error } = await q.select().single();
+  btn.disabled = false; btn.textContent = label;
+  if (error) { err.textContent = 'Не удалось сохранить: ' + errText(error) + '. Попробуйте ещё раз.'; return; }
+  if (data.demo) data = { purchases: [], demo: false };
+  const rec = fromRow(saved);
+  if (editingId) { data.purchases = data.purchases.map(p => p.id === rec.id ? rec : p); toast('Изменения сохранены'); }
+  else { data.purchases.push(rec); toast(`Покупка ${asset} на ${usd(amount)} записана`); }
+  resetForm(); refreshAll(); loadKlines();
+});
+
+/* ===================== Калькулятор ===================== */
+let calc = store.get(CALC_KEY, null) || { total: '', rows: [{ name: 'ETH', pct: '50' }, { name: 'SOL', pct: '50' }] };
+function saveCalc() { store.set(CALC_KEY, calc); }
+function buildCalc() {
+  $('calcTotal').value = calc.total;
+  $('calcRows').innerHTML = calc.rows.map((r, i) => `
+    <div class="crow" data-i="${i}">
+      <input class="input" data-k="name" value="${esc(r.name)}" placeholder="Актив" aria-label="Название актива ${i + 1}" id="calcName${i}">
+      <div class="pct-wrap"><input class="input num pct" data-k="pct" value="${esc(r.pct)}" inputmode="decimal" placeholder="0" aria-label="Процент для актива ${i + 1}" id="calcPct${i}"></div>
+      <button class="x" data-rm="${i}" aria-label="Убрать актив" title="Убрать">×</button>
+      <div class="crow-out" data-out="${i}"></div>
+    </div>`).join('');
+  updateCalc();
+}
+function updateCalc() {
+  const total = parseNum(calc.total) || 0;
+  let sumPct = 0;
+  calc.rows.forEach((r, i) => {
+    const p = parseNum(r.pct) || 0; sumPct += p;
+    const amt = total * p / 100;
+    const key = r.name.trim().toUpperCase(), pr = prices[key]?.price;
+    const qty = pr && amt > 0 ? ` ≈ ${qtyFmt(amt / pr, key)} ${key}` : '';
+    const btn = ASSETS[key] && amt > 0 ? `<button class="to-form" data-fill="${i}">в форму →</button>` : '';
+    const out = document.querySelector(`[data-out="${i}"]`);
+    if (out) out.innerHTML = `<span>${qty || '&nbsp;'} ${btn}</span><span class="amt">${usd(amt)}</span>`;
+  });
+  const rest = total * (100 - sumPct) / 100;
+  const ok = Math.abs(sumPct - 100) < 0.001;
+  $('calcFoot').innerHTML = `<span>Итого: <b class="num ${ok ? '' : 'warn'}">${nf(2, 0).format(sumPct)}%</b></span>` +
+    (ok ? `<span>Распределено полностью</span>` : sumPct < 100 ? `<span class="warn">Остаток: ${usd(rest)}</span>` : `<span class="warn">Перебор на ${nf(2, 0).format(sumPct - 100)}%</span>`);
+}
+$('calcTotal').addEventListener('input', e => { calc.total = e.target.value; saveCalc(); updateCalc(); });
+$('calcRows').addEventListener('input', e => {
+  const row = e.target.closest('.crow'); if (!row) return;
+  calc.rows[+row.dataset.i][e.target.dataset.k] = e.target.value; saveCalc(); updateCalc();
+});
+$('calcRows').addEventListener('click', e => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { calc.rows.splice(+rm.dataset.rm, 1); saveCalc(); buildCalc(); return; }
+  const fill = e.target.closest('[data-fill]');
+  if (fill) {
+    const r = calc.rows[+fill.dataset.fill], key = r.name.trim().toUpperCase();
+    const amt = (parseNum(calc.total) || 0) * (parseNum(r.pct) || 0) / 100;
+    resetForm();
+    const radio = document.querySelector(`input[name="asset"][value="${key}"]`); if (radio) radio.checked = true;
+    $('qtySuffix').textContent = key;
+    F.amount.value = +amt.toFixed(2); F.amount.dispatchEvent(new Event('input'));
+    if (prices[key]) { F.price.value = prices[key].price; F.price.dispatchEvent(new Event('input')); }
+    updatePriceHint();
+    $('buyForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast('Сумма перенесена в форму — проверьте цену и подтвердите');
+  }
+});
+$('calcAdd').onclick = () => { calc.rows.push({ name: '', pct: '' }); saveCalc(); buildCalc(); const n = $('calcName' + (calc.rows.length - 1)); n && n.focus(); };
+$('calcEven').onclick = () => {
+  const n = calc.rows.length; if (!n) return;
+  const base = Math.floor(10000 / n) / 100;
+  calc.rows.forEach((r, i) => r.pct = String(i === n - 1 ? +(100 - base * (n - 1)).toFixed(2) : base));
+  saveCalc(); buildCalc();
+};
+
+/* ===================== График ===================== */
+function buildSeg() {
+  const opts = [['portfolio', 'Портфель'], ...KEYS.map(k => [k, k])];
+  $('chartSeg').innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === chartView}">${l}</button>`).join('');
+  $('chartSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; chartView = b.dataset.v; buildSeg(); renderChart(); };
+}
+function sortedDays(m) { return [...m.keys()].sort(); }
+function seriesFor() {
+  const today = todayKey();
+  if (chartView === 'portfolio') {
+    const ps = data.purchases; if (!ps.length) return { empty: 'График стоимости портфеля появится после первой покупки' };
+    const start = ps.map(p => p.date).sort()[0];
+    const loaded = KEYS.filter(k => ps.some(p => p.asset === k)).every(k => klines[k]?.size);
+    if (!loaded) return { empty: 'Загружаю историю цен с Binance…' };
+    const days = []; { let d = new Date(start + 'T00:00:00Z'); const end = new Date(today + 'T00:00:00Z'); while (d <= end) { days.push(d.toISOString().slice(0, 10)); d = new Date(d.getTime() + 864e5); } }
+    const last = {}; const val = [], inv = [];
+    const sorted = [...ps].sort((a, b) => a.date.localeCompare(b.date));
+    let pi = 0; const qty = {}; let invested = 0;
+    for (const day of days) {
+      while (pi < sorted.length && sorted[pi].date <= day) { const p = sorted[pi++]; qty[p.asset] = (qty[p.asset] || 0) + p.qty; invested += p.amount; last[p.asset] = last[p.asset] ?? p.price; }
+      let v = 0;
+      for (const k in qty) {
+        let c = klines[k]?.get(day); if (c != null) last[k] = c;
+        if (day === today && prices[k]) last[k] = prices[k].price;
+        v += qty[k] * (last[k] || 0);
+      }
+      val.push(v); inv.push(invested);
+    }
+    return { days, lines: [
+      { name: 'Стоимость', vals: val, color: val[val.length - 1] >= inv[inv.length - 1] ? 'var(--up)' : 'var(--down)', area: true, money: true },
+      { name: 'Вложено', vals: inv, color: 'var(--muted)', dash: '5 5', step: true, money: true } ] };
+  }
+  const k = chartView, m = klines[k];
+  if (!m || !m.size) return { empty: 'Загружаю историю цен с Binance…' };
+  let days = sortedDays(m);
+  const own = data.purchases.filter(p => p.asset === k);
+  const firstBuy = own.map(p => p.date).sort()[0];
+  const from = firstBuy && firstBuy < days[Math.max(0, days.length - 90)] ? firstBuy : days[Math.max(0, days.length - 90)];
+  days = days.filter(d => d >= from);
+  const vals = days.map(d => (d === today && prices[k]) ? prices[k].price : m.get(d));
+  const pos = positions()[k];
+  return { days, lines: [{ name: k + ' цена', vals, color: ASSETS[k].color, area: true, money: true, dp: 2 }],
+    hline: pos.qty > 0 ? { v: pos.avg, label: 'Средняя ' + usd(pos.avg, priceDp(pos.avg)) } : null,
+    marks: own.filter(p => p.date >= from).map(p => ({ day: p.date, v: p.price, p })) };
+}
+let chartGeom = null;
+function renderChart() {
+  const svg = $('chart'), s = seriesFor();
+  const emptyEl = $('chartEmpty');
+  if (s.empty) { svg.innerHTML = ''; emptyEl.hidden = false; emptyEl.textContent = s.empty; $('chartLegend').innerHTML = ''; chartGeom = null; return; }
+  emptyEl.hidden = true;
+  const W = svg.clientWidth || 700, H = svg.clientHeight || 300;
+  const L = 64, R = 14, T = 14, B = 28;
+  const all = s.lines.flatMap(l => l.vals).concat(s.hline ? [s.hline.v] : []).concat((s.marks || []).map(m => m.v)).filter(v => v != null);
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (s.lines[0].money && chartView === 'portfolio') lo = Math.min(lo, 0) === 0 ? Math.max(0, lo - (hi - lo) * 0.15) : lo;
+  const padv = (hi - lo) * 0.08 || hi * 0.05 || 1; lo -= padv; hi += padv; if (chartView === 'portfolio' && lo < 0) lo = 0;
+  const n = s.days.length;
+  const x = i => L + (n === 1 ? (W - L - R) / 2 : i / (n - 1) * (W - L - R));
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  // сетка
+  const ticks = niceTicks(lo, hi, 5);
+  let g = ticks.map(t => `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end" fill="var(--faint)" font-size="11" font-family="var(--f-mono)">${compactUsd(t)}</text>`).join('');
+  const xt = Math.min(6, n), xs = [];
+  for (let j = 0; j < xt; j++) xs.push(Math.round(j * (n - 1) / Math.max(1, xt - 1)));
+  g += [...new Set(xs)].map(i => `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}" fill="var(--faint)" font-size="11">${fmtDateShort(s.days[i])}</text>`).join('');
+  let paths = '';
+  s.lines.forEach((l, li) => {
+    let d = '';
+    l.vals.forEach((v, i) => {
+      if (v == null) return;
+      if (!d) d = `M${x(i)} ${y(v)}`;
+      else if (l.step) d += ` H${x(i)} V${y(v)}`;
+      else d += ` L${x(i)} ${y(v)}`;
+    });
+    if (n === 1) d += ` L${x(0) + 1} ${y(l.vals[0])}`;
+    if (l.area) paths += `<defs><linearGradient id="ga${li}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${l.color}" stop-opacity=".22"/><stop offset="1" stop-color="${l.color}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${x(n - 1)} ${H - B} L${x(0)} ${H - B} Z" fill="url(#ga${li})"/>`;
+    paths += `<path d="${d}" fill="none" stroke="${l.color}" stroke-width="${l.dash ? 1.5 : 2.2}" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} stroke-linejoin="round"/>`;
+    const lv = l.vals[n - 1]; if (lv != null && !l.dash) paths += `<circle cx="${x(n - 1)}" cy="${y(lv)}" r="4" fill="${l.color}" stroke="var(--surface)" stroke-width="2"/>`;
+  });
+  if (s.hline) paths += `<line x1="${L}" x2="${W - R}" y1="${y(s.hline.v)}" y2="${y(s.hline.v)}" stroke="var(--accent)" stroke-dasharray="6 5" stroke-width="1.5"/><text x="${W - R - 4}" y="${y(s.hline.v) - 6}" text-anchor="end" fill="var(--accent)" font-size="11.5" font-weight="600">${s.hline.label}</text>`;
+  (s.marks || []).forEach(m => { const i = s.days.indexOf(m.day); if (i >= 0) paths += `<circle cx="${x(i)}" cy="${y(m.v)}" r="5" fill="var(--surface)" stroke="var(--accent)" stroke-width="2.2"/>`; });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = g + paths + `<line id="xh" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--faint)" stroke-width="1" visibility="hidden"/><g id="hdots"></g>`;
+  chartGeom = { s, x, y, n, L, R, W, T, B, H };
+  $('chartLegend').innerHTML = s.lines.map(l => `<span><i class="leg-line" style="border-color:${l.color};${l.dash ? 'border-top-style:dashed' : ''}"></i>${l.name}</span>`).join('') +
+    (s.hline ? `<span><i class="leg-line" style="border-color:var(--accent);border-top-style:dashed"></i>Средняя цена входа</span>` : '') +
+    (s.marks && s.marks.length ? `<span><span class="sw" style="border:2px solid var(--accent);border-radius:50%;background:transparent"></span>Ваши покупки</span>` : '');
+}
+function niceTicks(lo, hi, count) {
+  const span = hi - lo, step0 = span / count, mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag;
+  const step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+function compactUsd(v) { const a = Math.abs(v); return '$' + (a >= 1e6 ? nf(1, 0).format(v / 1e6) + 'M' : a >= 1e4 ? nf(1, 0).format(v / 1e3) + 'k' : nf(a < 10 ? 2 : 0, 0).format(v)); }
+const chartEl = $('chart');
+chartEl.addEventListener('pointermove', e => {
+  if (!chartGeom) return;
+  const { s, x, y, n, L, R, W } = chartGeom;
+  const rect = chartEl.getBoundingClientRect(), px = (e.clientX - rect.left) * (W / rect.width);
+  const i = Math.max(0, Math.min(n - 1, Math.round((px - L) / ((W - L - R) / Math.max(1, n - 1)))));
+  const xh = $('xh'); xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
+  $('hdots').innerHTML = s.lines.filter(l => l.vals[i] != null).map(l => `<circle cx="${x(i)}" cy="${y(l.vals[i])}" r="4" fill="${l.color}" stroke="var(--surface)" stroke-width="2"/>`).join('');
+  const tip = $('tip'); tip.hidden = false;
+  let html = `<div class="muted">${fmtDate(s.days[i])}</div>` + s.lines.map(l => `<div class="row"><span>${l.name}</span><span class="num">${l.vals[i] != null ? usd(l.vals[i], priceDp(l.vals[i])) : '—'}</span></div>`).join('');
+  if (chartView === 'portfolio') { const d = s.lines[0].vals[i] - s.lines[1].vals[i]; html += `<div class="row"><span>PnL</span><span class="num ${cls(d)}">${usdSigned(d)}</span></div>`; }
+  const buys = (s.marks || []).filter(m => m.day === s.days[i]);
+  buys.forEach(m => html += `<div class="row" style="color:var(--accent)"><span>Покупка</span><span class="num">${usd(m.p.amount)}</span></div>`);
+  tip.innerHTML = html;
+  const bx = chartEl.parentElement.getBoundingClientRect(), tx = e.clientX - bx.left;
+  tip.style.left = Math.min(Math.max(8, tx + 14), bx.width - tip.offsetWidth - 8) + 'px';
+  tip.style.top = '14px';
+});
+chartEl.addEventListener('pointerleave', () => { $('tip').hidden = true; const xh = $('xh'); if (xh) xh.setAttribute('visibility', 'hidden'); const hd = $('hdots'); if (hd) hd.innerHTML = ''; });
+let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(renderChart, 120); });
+
+/* ===================== Binance ===================== */
+async function getJSON(path) {
+  let lastErr;
+  for (const h of REST_HOSTS) {
+    try { const r = await fetch(h + path, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+function setLive(state, text) { $('live').dataset.s = state; $('liveText').textContent = text; }
+async function loadPrices() {
+  const syms = encodeURIComponent(JSON.stringify(KEYS.map(k => ASSETS[k].pair)));
+  const arr = await getJSON(`/api/v3/ticker/24hr?symbols=${syms}`);
+  for (const t of arr) { const k = KEYS.find(k => ASSETS[k].pair === t.symbol); if (k) prices[k] = { price: +t.lastPrice, change: +t.priceChangePercent }; }
+  scheduleRender();
+}
+let loadingK = false;
+async function loadKlines() {
+  if (loadingK) return; loadingK = true;
+  try {
+    const first = data.purchases.map(p => p.date).sort()[0];
+    const def = Date.now() - 120 * 864e5;
+    const startTs = Math.min(def, first ? Date.parse(first + 'T00:00:00Z') : def);
+    await Promise.all(KEYS.map(async k => {
+      const m = new Map(); let st = startTs;
+      for (let guard = 0; guard < 10; guard++) {
+        const rows = await getJSON(`/api/v3/klines?symbol=${ASSETS[k].pair}&interval=1d&startTime=${st}&limit=1000`);
+        rows.forEach(r => m.set(dayKeyUTC(r[0]), +r[4]));
+        if (rows.length < 1000) break; st = rows[rows.length - 1][0] + 864e5;
+      }
+      klines[k] = m;
+    }));
+    renderSparks(); renderChart();
+  } catch (e) { const em = $('chartEmpty'); if (chartGeom == null && !em.hidden) em.textContent = 'Не удалось загрузить историю цен с Binance. Проверьте интернет — попробую снова через минуту.'; setTimeout(loadKlines, 60000); }
+  finally { loadingK = false; }
+}
+let ws, wsHost = 0, pollTimer = null, wsFails = 0;
+function connectWS() {
+  const streams = KEYS.map(k => ASSETS[k].pair.toLowerCase() + '@ticker').join('/');
+  try { ws = new WebSocket(`${WS_HOSTS[wsHost]}?streams=${streams}`); } catch { return startPolling(); }
+  ws.onopen = () => { wsFails = 0; stopPolling(); setLive('live', 'Live · Binance'); };
+  ws.onmessage = ev => {
+    try { const d = JSON.parse(ev.data).data; const k = KEYS.find(k => ASSETS[k].pair === d.s); if (k) { prices[k] = { price: +d.c, change: +d.P }; scheduleRender(); } } catch {}
+  };
+  ws.onclose = () => {
+    wsFails++; wsHost = (wsHost + 1) % WS_HOSTS.length;
+    startPolling();
+    setTimeout(connectWS, Math.min(30000, 2000 * wsFails));
+  };
+  ws.onerror = () => { try { ws.close(); } catch {} };
+}
+function startPolling() {
+  if (pollTimer) return;
+  const tick = () => loadPrices().then(() => setLive('poll', 'Обновление раз в 15 с')).catch(() => setLive('off', 'Нет связи с Binance'));
+  tick(); pollTimer = setInterval(tick, 15000);
+}
+function stopPolling() { clearInterval(pollTimer); pollTimer = null; }
+
+/* ===================== Общий рендер ===================== */
+let rq = false, lastHeavy = 0;
+function scheduleRender() {
+  if (rq) return; rq = true;
+  requestAnimationFrame(() => {
+    rq = false; renderSummary(); renderAssets(); updatePriceHint(); updateCalc();
+    const now = Date.now();
+    if (now - lastHeavy > 3000) { lastHeavy = now; renderHistory(); renderSparks(); if ($('tip').hidden) renderChart(); }
+  });
+}
+function refreshAll() { renderSummary(); renderAssets(); renderHistory(); renderSparks(); renderChart(); updateCalc(); }
+
+/* ===================== Пример данных ===================== */
+function loadDemo() {
+  const p = { ETH: prices.ETH?.price || 3000, SOL: prices.SOL?.price || 150 };
+  const out = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(); d.setUTCDate(10); d.setUTCMonth(d.getUTCMonth() - i);
+    if (d > new Date()) continue;
+    const key = d.toISOString().slice(0, 10);
+    for (const k of ['ETH', 'SOL']) {
+      const c = klines[k]?.get(key);
+      const price = +(c || p[k] * (1 + Math.sin(i * 1.7 + (k === 'SOL' ? 1 : 0)) * 0.12)).toFixed(2);
+      const amount = k === 'ETH' ? 60 : 40;
+      out.push({ id: 'demo' + k + i, asset: k, date: key, amount, price, qty: +(amount / price).toFixed(8), createdAt: Date.now() - i });
+    }
+  }
+  data = { purchases: out, demo: true }; refreshAll(); loadKlines();
+  toast('Загружен пример — первая ваша покупка его заменит');
+}
+
+/* ===================== Резервная копия ===================== */
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'cryptofolio', version: 1, exportedAt: new Date().toISOString(), purchases: data.purchases }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `crypto-portfolio-${todayKey()}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Резервная копия скачана');
+};
+$('importFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const j = JSON.parse(await file.text());
+    const list = (j.purchases || []).filter(p => p && p.asset && /^\d{4}-\d{2}-\d{2}$/.test(p.date) && p.amount > 0 && p.price > 0 && p.qty > 0);
+    if (!list.length) throw new Error('bad');
+    const real = data.demo ? [] : data.purchases;
+    const sig = p => [p.asset, p.date, (+p.amount).toFixed(2), (+p.qty).toFixed(8)].join('|');
+    const have = new Set(real.map(sig));
+    const fresh = list.filter(p => !have.has(sig(p))).map(p => ({ asset: p.asset, date: p.date, amount: +p.amount, price: +p.price, qty: +p.qty }));
+    if (!fresh.length) { toast('Все покупки из файла уже есть в базе'); e.target.value = ''; return; }
+    const { error } = await sb.from('purchases').insert(fresh);
+    if (error) { toast('Не удалось добавить: ' + errText(error)); e.target.value = ''; return; }
+    data.demo = false; await loadFromDB();
+    toast(`Добавлено покупок: ${fresh.length}` + (list.length > fresh.length ? `, пропущено повторов: ${list.length - fresh.length}` : ''));
+  } catch { toast('Не удалось прочитать файл — нужен файл резервной копии этого сайта'); }
+  e.target.value = '';
+};
+
+/* ===================== Тема ===================== */
+(function () {
+  const t = store.get(THEME_KEY, null); if (t) document.documentElement.dataset.theme = t;
+  $('themeBtn').onclick = () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = next; store.set(THEME_KEY, next); renderChart(); renderSparks();
+  };
+})();
+
+/* ===================== Старт ===================== */
+/* ===================== Вход ===================== */
+function showGate(msg) {
+  document.body.classList.add('locked'); $('gate').hidden = false;
+  $('gateMsg').textContent = msg || 'Войдите, чтобы увидеть свой портфель.';
+  $('gateFields').hidden = !sb; $('loginBtn').hidden = !sb;
+  data = { purchases: [], demo: false }; loaded = false;
+}
+function enterApp(session) {
+  $('gate').hidden = true; document.body.classList.remove('locked');
+  $('who').textContent = session.user?.email || '';
+  refreshAll(); requestAnimationFrame(renderChart); loadFromDB();
+}
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('lEmail').value.trim(), password = $('lPass').value, er = $('loginErr'), btn = $('loginBtn');
+  if (!email || !password) { er.textContent = 'Введите почту и пароль.'; return; }
+  er.textContent = ''; btn.disabled = true; btn.textContent = 'Вхожу…';
+  const { data: res, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false; btn.textContent = 'Войти';
+  if (error) {
+    er.textContent = /invalid login/i.test(error.message) ? 'Неверная почта или пароль.'
+      : /not confirmed/i.test(error.message) ? 'Почта не подтверждена. В Supabase отметьте пользователя как подтверждённого.'
+      : 'Не удалось войти: ' + errText(error);
+    return;
+  }
+  $('lPass').value = ''; enterApp(res.session);
+});
+$('logoutBtn').onclick = async () => { await sb.auth.signOut(); showGate('Вы вышли. Войдите снова, чтобы увидеть портфель.'); };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !document.body.classList.contains('locked')) loadFromDB(true); });
+setInterval(() => { if (document.visibilityState === 'visible' && !document.body.classList.contains('locked')) loadFromDB(true); }, 60000);
+async function initAuth() {
+  if (!sb) { showGate('Не удалось загрузить модуль базы данных. Проверьте интернет и обновите страницу.'); return; }
+  sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT' && !document.body.classList.contains('locked')) showGate('Сессия закончилась. Войдите снова.'); });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) enterApp(session); else showGate();
+}
+
+buildAssetCards(); buildAssetPick(); buildSeg(); buildCalc(); resetForm(); initAuth();
+loadPrices().then(() => setLive('poll', 'Цены загружены')).catch(() => setLive('off', 'Нет связи с Binance'));
+connectWS(); loadKlines();
+setInterval(loadKlines, 10 * 60 * 1000);
+</script>
+</body>
+</html>
